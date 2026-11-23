@@ -1,0 +1,479 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>KRILLION: Daily Dive</title>
+    <style>
+        * { box-sizing: border-box; }
+        body {
+            margin: 0;
+            background: #052547;
+            color: #e0f7fa;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            padding: 15px;
+            overflow-x: hidden;
+            transition: background 1.5s ease;
+        }
+
+        /* Rising Bubbles */
+        #bubbles {
+            position: fixed;
+            inset: 0;
+            pointer-events: none;
+            z-index: 0;
+            overflow: hidden;
+        }
+        .bubble {
+            position: absolute;
+            bottom: -20px;
+            background: rgba(0, 229, 255, 0.25);
+            border: 1px solid rgba(0, 229, 255, 0.45);
+            border-radius: 50%;
+            animation: rise linear infinite;
+        }
+        @keyframes rise {
+            0% { transform: translateY(0) scale(1); opacity: 0.7; }
+            100% { transform: translateY(-110vh) scale(1.4); opacity: 0; }
+        }
+
+        #app-wrapper {
+            position: relative;
+            z-index: 1;
+            display: flex;
+            gap: 14px;
+            max-width: 660px;
+            width: 100%;
+            align-items: stretch;
+        }
+
+        /* Left Vertical Depth Gauge */
+        #dive-shaft {
+            width: 72px;
+            background: rgba(1, 10, 24, 0.88);
+            border: 2px solid #00838f;
+            border-radius: 16px;
+            position: relative;
+            padding: 15px 4px;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 0.7rem;
+            color: #4dd0e1;
+            font-weight: bold;
+            min-height: 450px;
+        }
+        .depth-marker {
+            width: 100%;
+            text-align: center;
+            border-bottom: 1px dashed rgba(77, 208, 225, 0.25);
+            padding-bottom: 2px;
+        }
+        #krill-diver {
+            position: absolute;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 2rem;
+            filter: drop-shadow(0 0 12px #00e5ff);
+            transition: top 1.3s cubic-bezier(0.22, 1, 0.36, 1);
+            z-index: 5;
+        }
+        .diving-wiggle {
+            animation: swim 0.4s ease-in-out 3;
+        }
+        @keyframes swim {
+            0%, 100% { transform: translateX(-50%) rotate(0deg) scale(1.2); }
+            25% { transform: translateX(-68%) rotate(-15deg) scale(1.25); }
+            75% { transform: translateX(-32%) rotate(15deg) scale(1.25); }
+        }
+
+        /* Main Game Box */
+        #game-container {
+            flex: 1;
+            background: rgba(3, 18, 38, 0.92);
+            border: 2px solid #00e5ff;
+            border-radius: 16px;
+            padding: 24px;
+            box-shadow: 0 0 35px rgba(0, 229, 255, 0.2);
+            text-align: center;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+        }
+        h1 {
+            margin: 0;
+            color: #00e5ff;
+            letter-spacing: 3px;
+            font-size: 1.9rem;
+            text-shadow: 0 0 12px rgba(0, 229, 255, 0.6);
+        }
+        .zone-label {
+            color: #80deea;
+            font-size: 0.85rem;
+            margin-top: 4px;
+            margin-bottom: 16px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        #stats-bar {
+            display: flex;
+            justify-content: space-between;
+            background: rgba(0, 0, 0, 0.45);
+            padding: 12px 16px;
+            border-radius: 10px;
+            font-weight: bold;
+            border: 1px solid #006064;
+            font-size: 0.95rem;
+        }
+        .depth-val { color: #00e5ff; }
+        #prompt-box {
+            font-size: 1.25rem;
+            font-weight: 700;
+            margin: 22px 0;
+            padding: 16px;
+            background: rgba(0, 229, 255, 0.07);
+            border-radius: 12px;
+            border: 1px solid rgba(0, 229, 255, 0.25);
+            min-height: 75px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            line-height: 1.4;
+        }
+        .input-group {
+            display: flex;
+            gap: 10px;
+        }
+        input[type="text"] {
+            flex: 1;
+            padding: 14px;
+            border-radius: 10px;
+            border: 2px solid #00838f;
+            background: #010c1c;
+            color: #fff;
+            font-size: 1rem;
+            outline: none;
+            width: 100%;
+        }
+        input[type="text"]:focus { border-color: #00e5ff; }
+        button {
+            padding: 14px 20px;
+            border: none;
+            border-radius: 10px;
+            background: #00e5ff;
+            color: #010a17;
+            font-weight: 800;
+            font-size: 1rem;
+            cursor: pointer;
+            letter-spacing: 1px;
+            touch-action: manipulation;
+        }
+        button:active { transform: scale(0.96); }
+
+        #result-card {
+            display: none;
+            background: rgba(0, 28, 56, 0.96);
+            border-radius: 12px;
+            padding: 18px;
+            margin-top: 15px;
+            border: 1px solid #00acc1;
+            text-align: left;
+        }
+        .tier-badge {
+            display: inline-block;
+            padding: 5px 12px;
+            border-radius: 20px;
+            font-weight: 800;
+            font-size: 0.8rem;
+            text-transform: uppercase;
+            margin-bottom: 10px;
+        }
+        .missed-list {
+            font-size: 0.85rem;
+            color: #b2ebf2;
+            margin-top: 10px;
+            padding-top: 10px;
+            border-top: 1px solid rgba(255,255,255,0.12);
+            line-height: 1.4;
+        }
+        #end-screen { display: none; padding: 15px 0; }
+        #emoji-grid {
+            font-size: 1.6rem;
+            letter-spacing: 4px;
+            margin: 12px 0;
+        }
+    </style>
+</head>
+<body>
+
+<div id="bubbles"></div>
+
+<div id="app-wrapper">
+    <div id="dive-shaft">
+        <div id="krill-diver">🦐</div>
+        <div class="depth-marker">0m</div>
+        <div class="depth-marker">1,500m</div>
+        <div class="depth-marker">3,000m</div>
+        <div class="depth-marker">4,500m</div>
+        <div class="depth-marker">6,000m</div>
+        <div class="depth-marker" style="border:none;">7,000m</div>
+    </div>
+
+    <div id="game-container">
+        <div>
+            <h1>KRILLION</h1>
+            <div class="zone-label" id="zone-name">Sunlight Zone (0m)</div>
+        </div>
+
+        <div id="play-screen">
+            <div id="stats-bar">
+                <span>PROMPT <span id="q-num">1</span> OF <span id="q-total">7</span></span>
+                <span>DEPTH: <span id="depth" class="depth-val">0m</span></span>
+            </div>
+
+            <div id="prompt-box"></div>
+
+            <div class="input-group" id="input-area">
+                <input type="text" id="answer-input" placeholder="Type a rare answer..." autocomplete="off" autocorrect="off">
+                <button type="button" id="dive-btn">DIVE</button>
+            </div>
+
+            <div id="result-card">
+                <div id="tier-badge" class="tier-badge"></div>
+                <div id="result-msg" style="font-size: 1.05rem; font-weight: bold;"></div>
+                <div id="missed-examples" class="missed-list"></div>
+                <button type="button" id="next-btn" style="width: 100%; margin-top: 15px;">CONTINUE DIVE ↓</button>
+            </div>
+        </div>
+
+        <div id="end-screen">
+            <h2 style="margin-top:0; color:#80deea;">DIVE COMPLETE</h2>
+            <div id="final-depth" style="font-size: 2.6rem; font-weight: 900; color: #00e5ff; margin: 8px 0;">0m</div>
+            <div id="emoji-grid"></div>
+            <p id="final-rank" style="font-size: 1.1rem; color: #b2ebf2; margin-bottom: 20px;"></p>
+            <button type="button" id="share-btn" style="width: 100%; margin-bottom: 10px; background: #00e676;">COPY SCORE 📋</button>
+            <button type="button" id="restart-btn" style="width: 100%;">SURFACE & DIVE AGAIN</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    const prompts = [
+        {
+            question: "Name a country in South America.",
+            answers: {
+                "brazil": 10, "argentina": 10,
+                "colombia": 20, "chile": 20, "peru": 20,
+                "venezuela": 40, "ecuador": 40, "bolivia": 40,
+                "uruguay": 60, "paraguay": 60,
+                "guyana": 80, "suriname": 100
+            },
+            hints: "Rare dives: Uruguay (600m), Paraguay (600m), Guyana (800m), Suriname (1000m)"
+        },
+        {
+            question: "Name an animal that lays eggs (not a bird).",
+            answers: {
+                "snake": 10, "snakes": 10, "turtle": 10, "turtles": 10, "crocodile": 10, "alligator": 10, "fish": 10, "frog": 10,
+                "lizard": 20, "shark": 20, "spider": 20, "ant": 20, "bee": 20, "butterfly": 20, "octopus": 20,
+                "platypus": 40, "gecko": 40, "chameleon": 40, "iguana": 40, "toad": 40, "salamander": 40,
+                "echidna": 60, "komodo dragon": 60, "seahorse": 60, "axolotl": 60, "stingray": 60,
+                "tuatara": 80, "newt": 80, "monotreme": 80, "caecilian": 100, "hagfish": 100
+            },
+            hints: "Rare dives: Platypus (400m), Echidna (600m), Axolotl (600m), Tuatara (800m)"
+        },
+        {
+            question: "Name a sport played with a racket or paddle.",
+            answers: {
+                "tennis": 10, "badminton": 10, "ping pong": 10, "table tennis": 10,
+                "squash": 20, "pickleball": 20,
+                "racquetball": 40, "padel": 40,
+                "pelota": 60, "jai alai": 60, "beach tennis": 60,
+                "real tennis": 80, "frontenis": 80,
+                "tamburello": 100, "matkot": 100, "speedminton": 100
+            },
+            hints: "Rare dives: Padel (400m), Jai Alai (600m), Real Tennis (800m), Matkot (1000m)"
+        },
+        {
+            question: "Name a month with exactly 30 days.",
+            answers: {
+                "april": 20, "june": 20, "september": 40, "november": 60
+            },
+            hints: "Only 4 exist: April (200m), June (200m), September (400m), November (600m)"
+        },
+        {
+            question: "Name a US state that starts with the letter M.",
+            answers: {
+                "michigan": 10, "maine": 10, "massachusetts": 10, "minnesota": 10,
+                "mississippi": 20, "missouri": 20, "montana": 20,
+                "maryland": 60
+            },
+            hints: "All 8 exist: Maine, Maryland, Massachusetts, Michigan, Minnesota, Mississippi, Missouri, Montana"
+        },
+        {
+            question: "Name a chess piece.",
+            answers: {
+                "pawn": 10, "queen": 10, "king": 10,
+                "knight": 20, "bishop": 40, "rook": 60
+            },
+            hints: "All 6 pieces: Pawn, King, Queen, Knight, Bishop, Rook"
+        },
+        {
+            question: "Name a planet or dwarf planet in our Solar System.",
+            answers: {
+                "earth": 10, "mars": 10, "jupiter": 10, "saturn": 10,
+                "venus": 20, "mercury": 20, "uranus": 20, "neptune": 20,
+                "pluto": 40,
+                "ceres": 60, "eris": 60,
+                "makemake": 80, "haumea": 80,
+                "sedna": 100, "quaoar": 100, "gonggong": 100, "orcus": 100
+            },
+            hints: "Dwarf planets: Pluto (400m), Ceres & Eris (600m), Makemake & Haumea (800m)"
+        }
+    ];
+
+    const tierInfo = {
+        0:   { name: "Surface Bounce (0m)", color: "#ff5252", text: "#fff", emoji: "🟥" },
+        10:  { name: "Plankton (+100m)", color: "#b0bec5", text: "#000", emoji: "⬜" },
+        20:  { name: "Uncommon (+200m)", color: "#4dd0e1", text: "#000", emoji: "🟦" },
+        40:  { name: "Rare (+400m)", color: "#00e676", text: "#000", emoji: "🟩" },
+        60:  { name: "Deep Cut (+600m)", color: "#ffea00", text: "#000", emoji: "🟨" },
+        80:  { name: "Trench Floor (+800m)", color: "#ff9100", text: "#000", emoji: "🟧" },
+        100: { name: "ONE IN A KRILLION! (+1000m)", color: "#d500f9", text: "#fff", emoji: "🟪" }
+    };
+
+    let currentIdx = 0;
+    let totalDepth = 0;
+    let scoreEmojis = [];
+
+    // Rising bubbles
+    const bubbleContainer = document.getElementById("bubbles");
+    for (let i = 0; i < 18; i++) {
+        const b = document.createElement("div");
+        b.className = "bubble";
+        const size = Math.random() * 12 + 4 + "px";
+        b.style.width = size;
+        b.style.height = size;
+        b.style.left = Math.random() * 100 + "vw";
+        b.style.animationDuration = (Math.random() * 8 + 6) + "s";
+        b.style.animationDelay = (Math.random() * 5) + "s";
+        bubbleContainer.appendChild(b);
+    }
+
+    function updateDiveVisuals() {
+        const maxDepth = prompts.length * 1000;
+        const pct = Math.min(totalDepth / maxDepth, 1);
+        const shaft = document.getElementById("dive-shaft");
+        const krill = document.getElementById("krill-diver");
+
+        const maxTop = shaft.clientHeight - 55;
+        krill.style.top = (20 + pct * maxTop) + "px";
+
+        krill.classList.remove("diving-wiggle");
+        void krill.offsetWidth;
+        krill.classList.add("diving-wiggle");
+
+        let zone = "Sunlight Zone";
+        let bg = "#052547";
+        if (totalDepth >= 4500) { zone = "Hadal Trench"; bg = "#000205"; }
+        else if (totalDepth >= 3000) { zone = "Abyssal Zone"; bg = "#010712"; }
+        else if (totalDepth >= 1800) { zone = "Midnight Zone"; bg = "#020d1f"; }
+        else if (totalDepth >= 700) { zone = "Twilight Zone"; bg = "#03152b"; }
+
+        document.body.style.background = bg;
+        document.getElementById("zone-name").innerText = `${zone} (${totalDepth}m)`;
+    }
+
+    function loadPrompt() {
+        document.getElementById("q-num").innerText = currentIdx + 1;
+        document.getElementById("q-total").innerText = prompts.length;
+        document.getElementById("prompt-box").innerText = prompts[currentIdx].question;
+        document.getElementById("result-card").style.display = "none";
+        document.getElementById("input-area").style.display = "flex";
+        const inputEl = document.getElementById("answer-input");
+        inputEl.value = "";
+        inputEl.focus();
+    }
+
+    function submitAnswer() {
+        const inputEl = document.getElementById("answer-input");
+        const raw = inputEl.value.trim().toLowerCase();
+        if (!raw) return;
+
+        const currentQ = prompts[currentIdx];
+        const pts = currentQ.answers[raw] || 0;
+        const addedDepth = pts * 10;
+        totalDepth += addedDepth;
+
+        const info = tierInfo[pts];
+        scoreEmojis.push(info.emoji);
+
+        document.getElementById("depth").innerText = totalDepth + "m";
+        document.getElementById("input-area").style.display = "none";
+        updateDiveVisuals();
+
+        const badge = document.getElementById("tier-badge");
+        badge.innerText = info.name;
+        badge.style.backgroundColor = info.color;
+        badge.style.color = info.text;
+
+        document.getElementById("result-msg").innerText = pts > 0
+            ? `You dove with "${inputEl.value.trim()}" (+${addedDepth}m)`
+            : `"${inputEl.value.trim()}" bounced off the surface! (0m)`;
+
+        document.getElementById("missed-examples").innerText = currentQ.hints;
+        document.getElementById("result-card").style.display = "block";
+    }
+
+    function nextPrompt() {
+        currentIdx++;
+        if (currentIdx < prompts.length) {
+            loadPrompt();
+        } else {
+            document.getElementById("play-screen").style.display = "none";
+            document.getElementById("end-screen").style.display = "block";
+            document.getElementById("final-depth").innerText = `${totalDepth}m / ${prompts.length * 1000}m`;
+            document.getElementById("emoji-grid").innerText = scoreEmojis.join("");
+
+            let rank = "Sunlight Swimmer";
+            if (totalDepth >= 4500) rank = "Hadal Trench Legend!";
+            else if (totalDepth >= 3000) rank = "Abyssal Zone Explorer";
+            else if (totalDepth >= 1800) rank = "Midnight Zone Diver";
+            document.getElementById("final-rank").innerText = "Rank: " + rank;
+        }
+    }
+
+    function restartGame() {
+        currentIdx = 0;
+        totalDepth = 0;
+        scoreEmojis = [];
+        document.getElementById("depth").innerText = "0m";
+        document.getElementById("end-screen").style.display = "none";
+        document.getElementById("play-screen").style.display = "block";
+        document.getElementById("share-btn").innerText = "COPY SCORE 📋";
+        updateDiveVisuals();
+        loadPrompt();
+    }
+
+    document.getElementById("dive-btn").addEventListener("click", submitAnswer);
+    document.getElementById("next-btn").addEventListener("click", nextPrompt);
+    document.getElementById("restart-btn").addEventListener("click", restartGame);
+    document.getElementById("share-btn").addEventListener("click", () => {
+        const text = `🦐 KRILLION DIVE: ${totalDepth}m\n${scoreEmojis.join("")}`;
+        navigator.clipboard.writeText(text);
+        document.getElementById("share-btn").innerText = "COPIED! ✅";
+    });
+    document.getElementById("answer-input").addEventListener("keydown", (e) => {
+        if (e.key === "Enter") submitAnswer();
+    });
+
+    loadPrompt();
+</script>
+
+</body>
+</html>
